@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <style>
+        .login { display:none}
+        .login.show { display:block}
+        .yourturn { display:none}
+        .yourturn.show { display:block}
+        .waiting { display:none}
+        .waiting.show { display:block}
+        .container { display:none;}
+        .container.show { display:flex; flex-flow:wrap;width:310px;}
+        .field { height:100px; width:100px; border:1px solid black;display:flex;align-items:center;justify-content:center;}
+
+    </style>
+    <h1>Welkom bij Boter Kaas en Eieren</h1>
+    <div class="login show">
+       <span class="label">Username</span> <input type="text" name="username" id="username"/>
+       <div class="button" id="btnStart">Start</div>
+    </div>
+    <div class="waiting">Waiting for the other player to connect...</div>
+    <div class="yourturn">It is your turn</div>
+
+    <div class="container">
+        <div class="field" data-val="0"></div>
+        <div class="field" data-val="1"></div>
+        <div class="field" data-val="2"></div>
+        <div class="field" data-val="3"></div>
+        <div class="field" data-val="4"></div>
+        <div class="field" data-val="5"></div>
+        <div class="field" data-val="6"></div>
+        <div class="field" data-val="7"></div>
+        <div class="field" data-val="8"></div>
+    </div>
+
+    <script>
+    var GameState = { Init:0, Starting:1, Started:2, YourTurn:3, OtherTurn:4, GameOver:5};
+    var gamestate = GameState.Init;
+
+    var ws = new WebSocket("ws://localhost:8085");
+    ws.onmessage = (m) => { 
+        console.log("getting data", m.data);
+        if (m.data == "START"){
+            document.querySelector(".waiting").classList.remove("show");
+            gamestate = GameState.Started;
+            document.querySelector(".login").classList.remove("show");
+            document.querySelector(".container").classList.add("show");
+        }
+        if (m.data == "TURN") {
+            document.querySelector(".yourturn").classList.add("show");
+            gamestate = GameState.YourTurn;
+        }
+        else {
+            console.log("data " + m.data);
+            if (m.data.indexOf("STATUS:")== 0){
+                let status = m.data.replace("STATUS:",""); 
+                let gamedata = JSON.parse(status); 
+                let fields = document.querySelectorAll(".field");
+                for (let i = 0; i < gamedata.length; i++){
+                    fields[i].innerHTML = gamedata[i];
+                }
+            }
+        }
+    };
+
+    document.querySelector("#btnStart").addEventListener('click', () => {
+        if (gamestate == GameState.Init) {
+            ws.send("USER:" + document.querySelector("#username").value);
+            document.querySelector(".waiting").classList.add("show");
+            gamestate = GameState.Starting;
+        }
+    });
+
+    document.querySelector(".container").addEventListener('click', (e) => {
+        if (gamestate == GameState.YourTurn){
+            console.log(e.target.dataset.val);
+            ws.send("TURN:" + e.target.dataset.val);
+            document.querySelector(".yourturn").classList.remove("show");
+            gamestate = GameState.OtherTurn;
+        }
+       
+    });
+    </script>
+</body>
+</html>
